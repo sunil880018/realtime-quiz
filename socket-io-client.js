@@ -18,7 +18,7 @@ tokens.forEach(async (token) => {
   socket.on('connect', async () => {
     console.log(`[${name}] Connected: ${socket.id}`);
 
-    // Join matchmaking queue
+    // Join game queue
     try {
       const res = await axios.post(
         'http://localhost:3000/api/game/start',
@@ -72,3 +72,6 @@ tokens.forEach(async (token) => {
 
   socket.on('error', (err) => console.error(`[${name}] Socket error:`, err));
 });
+
+// .on() = LISTEN for an event.
+// .emit() = FIRE/SEND an event.

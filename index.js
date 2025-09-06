@@ -10,7 +10,6 @@ const { ingestQuestions } = require('./scripts/ingestQuestions');
 
 const app = express();
 const server = http.createServer(app);
-// Middleware
 app.use(express.json());
 
 // Routes
@@ -23,7 +22,6 @@ app.use('/api/game', gameRoutes);
     server.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
-    // Ingest questions on server start
     await ingestQuestions();
     // Initialize WebSocket after server starts
     initSocket(server);
@@ -33,7 +31,6 @@ app.use('/api/game', gameRoutes);
   }
 })();
 
-// Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('Shutting down gracefully...');
   await mongoose.disconnect();

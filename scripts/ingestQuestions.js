@@ -1,57 +1,5 @@
 const Question = require('../models/Questions');
-
-const questions = [
-  {
-    questionText: 'What is the capital of France?',
-    options: ['Berlin', 'Madrid', 'Paris', 'Rome'],
-    correctAnswer: 'Paris',
-    category: 'Geography',
-    difficulty: 'Easy',
-    points: 10,
-  },
-  {
-    questionText: 'Who wrote "To Kill a Mockingbird"?',
-    options: [
-      'Harper Lee',
-      'Mark Twain',
-      'F. Scott Fitzgerald',
-      'Ernest Hemingway',
-    ],
-    correctAnswer: 'Harper Lee',
-    category: 'Literature',
-    difficulty: 'Medium',
-    points: 20,
-  },
-  {
-    questionText: 'What is the powerhouse of the cell?',
-    options: ['Nucleus', 'Mitochondria', 'Ribosome', 'Endoplasmic Reticulum'],
-    correctAnswer: 'Mitochondria',
-    category: 'Science',
-    difficulty: 'Easy',
-    points: 10,
-  },
-  {
-    questionText: 'What is the largest planet in our solar system?',
-    options: ['Earth', 'Mars', 'Jupiter', 'Saturn'],
-    correctAnswer: 'Jupiter',
-    category: 'Science',
-    difficulty: 'Easy',
-    points: 10,
-  },
-  {
-    questionText: 'Who painted the Mona Lisa?',
-    options: [
-      'Vincent van Gogh',
-      'Pablo Picasso',
-      'Leonardo da Vinci',
-      'Claude Monet',
-    ],
-    correctAnswer: 'Leonardo da Vinci',
-    category: 'Art',
-    difficulty: 'Medium',
-    points: 20,
-  },
-];
+const questions = require('./questions.json');
 
 async function ingestQuestions() {
   try {
@@ -63,8 +11,4 @@ async function ingestQuestions() {
     console.error('Error ingesting questions:', error);
   }
 }
-
-// Run the script
-// ingestQuestions();
-
 module.exports = { ingestQuestions };

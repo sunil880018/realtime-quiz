@@ -55,7 +55,6 @@ npm install
 
 ```bash
 npm run start      # Start Express + Socket.IO
-npm run client     # Start simulated players
 
 ```
 
@@ -69,11 +68,19 @@ docker compose up --build
 ## End Points
 
 ```bash
-| Method | Endpoint          | Description                                              |
-| ------ | ----------------- | -------------------------------------------------------- |
-| POST   | `/api/auth/login` | Login with `{email, name}` → returns JWT                 |
-| POST   | `/api/game/start` | Join matchmaking queue (Authorization: Bearer `<token>`) |
 
+| Method | Endpoint             | Description                                              |
+| ------ | -------------------- | -------------------------------------------------------- |
+| POST   | `/api/auth/register` | Register new user with `{email, name, password}`                   |
+| POST   | `/api/auth/login`    | Login with `{email, password}` → returns JWT                 |
+| POST   | `/api/game/start`    | Join matchmaking queue (Authorization: Bearer `<token>`) |
+
+```
+
+## After Login, insert generated token in tokens array inside socket-io.client.js file.
+
+```bash
+npm run client     # Start simulated players
 ```
 
 ## Socket.IO Events
@@ -86,17 +93,4 @@ docker compose up --build
 | `answer:submit` | client → server | `{ "gameId": "123", "questionIndex": 0, "selectedChoice": 3 }`                                                          |
 | `game:end`      | server → client | `{ "players": [{ "userId": "u1", "name": "Alice", "score": 50 }], "winner": "Alice" }`                                  |
 
-```
-
-### Sample Questions Document
-
-```bash
-{
-  "questionText": "What is 2 + 2?",
-  "options": ["1", "2", "3", "4"],
-  "correctAnswer": "4",
-  "category": "Math",
-  "difficulty": "Easy",
-  "points": 10
-}
 ```
