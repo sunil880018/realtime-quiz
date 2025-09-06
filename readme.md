@@ -17,6 +17,7 @@ A **Node.js + Socket.IO + MongoDB** powered multiplayer quiz application where u
 
 ## 📂 Project Structure
 
+```bash
 ├── index.js # Entry point (Express + Socket.IO)
 ├── socket/ # Socket.IO events and matchmaking
 ├── models/ # Mongoose schemas (User, Game, Question)
@@ -28,6 +29,7 @@ A **Node.js + Socket.IO + MongoDB** powered multiplayer quiz application where u
 └── README.md
 
 ---
+```
 
 ## 🛠️ Setup
 
