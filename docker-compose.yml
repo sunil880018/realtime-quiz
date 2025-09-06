@@ -1,0 +1,22 @@
+services:
+  mongo:
+    image: mongo:6
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data:/data/db
+
+  app:
+    build: .
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/quiz
+      - JWT_SECRET=replace-this-secret
+      - NUM_QUESTIONS=2
+    ports:
+      - '3000:3000'
+    depends_on:
+      - mongo
+
+volumes:
+  mongo-data:

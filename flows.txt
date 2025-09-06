@@ -1,0 +1,51 @@
+┌───────────────┐
+│ Client connects│
+└───────┬───────┘
+        │ (with JWT token)
+        ▼
+┌──────────────────────┐
+│ Socket.io middleware │
+│ → verify JWT         │
+└─────────┬────────────┘
+          │ (authenticated)
+          ▼
+┌──────────────────────┐
+│  Added to Queue      │
+└─────────┬────────────┘
+          │ (when >= 2 players)
+          ▼
+┌──────────────────────┐
+│   Matchmaking        │
+│  → Create Game Doc   │
+│  → Select Questions  │
+└─────────┬────────────┘
+          │
+          ▼
+┌─────────────────────────┐
+│ Send "game:init" event  │
+│ Send 1st Question        │
+└─────────┬───────────────┘
+          │
+          ▼
+┌───────────────────────────┐
+│ Players submit answers     │
+│ → "answer:submit" event    │
+└──────────┬────────────────┘
+           │
+    ┌──────▼───────┐
+    │ Both Answer? │───No───> Wait
+    └──────┬───────┘
+           │Yes
+           ▼
+┌───────────────────────────┐
+│ Check correctness         │
+│ Update scores             │
+│ Next Question or End Game │
+└──────────┬────────────────┘
+           │
+           ▼
+┌───────────────────────────┐
+│  Game Finished             │
+│  → Save in DB              │
+│  → Emit "game:end"         │
+└───────────────────────────┘
