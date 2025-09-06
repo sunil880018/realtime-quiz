@@ -1,6 +1,4 @@
-const mongoose = require('mongoose');
 const Question = require('../models/Questions');
-const { connectDB } = require('../database/connections');
 
 const questions = [
   {
@@ -57,19 +55,16 @@ const questions = [
 
 async function ingestQuestions() {
   try {
-    await connectDB();
-    console.log('DB connected');
     await Question.deleteMany({});
     await Question.insertMany(questions);
 
     console.log('Questions ingested successfully');
   } catch (error) {
     console.error('Error ingesting questions:', error);
-  } finally {
-    await mongoose.disconnect();
-    console.log('DB connection closed');
   }
 }
 
 // Run the script
-ingestQuestions();
+// ingestQuestions();
+
+module.exports = { ingestQuestions };

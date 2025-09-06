@@ -3,7 +3,7 @@ const QuestionSchema = new mongoose.Schema(
   {
     questionText: { type: String, required: true },
     options: { type: [String], required: true },
-    correctAnswer: { type: String, required: true }, // storing answer text directly
+    correctAnswer: { type: String, required: true },
     category: { type: String, required: true },
     difficulty: {
       type: String,

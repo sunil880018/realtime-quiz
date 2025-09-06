@@ -6,6 +6,8 @@ const authRoutes = require('./routes/auth');
 const gameRoutes = require('./routes/game');
 const { initSocket } = require('./sockets/gameSockets');
 const { connectDB } = require('./database/connections');
+const { ingestQuestions } = require('./scripts/ingestQuestions');
+
 const app = express();
 const server = http.createServer(app);
 // Middleware
@@ -18,11 +20,11 @@ app.use('/api/game', gameRoutes);
 (async () => {
   try {
     await connectDB();
-    console.log('Database connected successfully');
     server.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
-
+    // Ingest questions on server start
+    await ingestQuestions();
     // Initialize WebSocket after server starts
     initSocket(server);
   } catch (err) {
