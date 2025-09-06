@@ -26,7 +26,7 @@ const GameSchema = new mongoose.Schema(
     ],
     currentIndex: { type: Number, default: 0 },
     status: {
-      type: String,
+      type: String, 
       enum: ['pending', 'active', 'finished'],
       default: 'pending',
     },

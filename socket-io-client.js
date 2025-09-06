@@ -5,8 +5,8 @@ const prompt = require('prompt-sync')({ sigint: true }); // npm i prompt-sync
 
 // Array of JWT tokens
 const tokens = [
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGJjMTE3YjBlNGYwZGFlZjcyOTRjNTYiLCJlbWFpbCI6InN1bmlsQGdtYWlsLmNvbSIsIm5hbWUiOiJzdW5pbCIsImlhdCI6MTc1NzE1NTcyMCwiZXhwIjoxNzU3MjQyMTIwfQ.LrvEGroxblQNNxSh0Jp6I7DzGPQxpSqWUpESKzlWGU8',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGJjMTE4MTBlNGYwZGFlZjcyOTRjNTkiLCJlbWFpbCI6ImFiaGlzaGVrQGdtYWlsLmNvbSIsIm5hbWUiOiJhYmhpc2hlayIsImlhdCI6MTc1NzE1NTcyMywiZXhwIjoxNzU3MjQyMTIzfQ.GGI8zmdHSx_kh9jUG8EXzHRuoqGDe1Di4mG3C-hYS34',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGJiYzcyNWM4ZWNiNDBiNTZjNWIxN2MiLCJlbWFpbCI6InN1bmlsQGdtYWlsLmNvbSIsIm5hbWUiOiJzdW5pbCIsImlhdCI6MTc1NzE1Nzg0NywiZXhwIjoxNzU3MjQ0MjQ3fQ.Uv3fNcX14bsTugqJ-ciFEO-6RFhIxPrEKIW1v-19jYk',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGJiYzc3YmM4ZWNiNDBiNTZjNWIxN2YiLCJlbWFpbCI6ImFiaGlzaGVrQGdtYWlsLmNvbSIsIm5hbWUiOiJhYmhpc2hlayIsImlhdCI6MTc1NzE1Nzg1MSwiZXhwIjoxNzU3MjQ0MjUxfQ.siatOCSwNlYY1exG-Z7e4_VgYvTbkw_De66--atqPvs',
 ];
 
 tokens.forEach(async (token) => {
