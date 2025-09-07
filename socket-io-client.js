@@ -1,17 +1,16 @@
 const { io } = require('socket.io-client');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
-const prompt = require('prompt-sync')({ sigint: true });
-
+const { getUserChoice } = require('./utils/userInput');
 // Array of JWT tokens
 const tokens = [
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGJiYzcyNWM4ZWNiNDBiNTZjNWIxN2MiLCJlbWFpbCI6InN1bmlsQGdtYWlsLmNvbSIsIm5hbWUiOiJzdW5pbCIsImlhdCI6MTc1NzE1Nzg0NywiZXhwIjoxNzU3MjQ0MjQ3fQ.Uv3fNcX14bsTugqJ-ciFEO-6RFhIxPrEKIW1v-19jYk',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGJiYzc3YmM4ZWNiNDBiNTZjNWIxN2YiLCJlbWFpbCI6ImFiaGlzaGVrQGdtYWlsLmNvbSIsIm5hbWUiOiJhYmhpc2hlayIsImlhdCI6MTc1NzE1Nzg1MSwiZXhwIjoxNzU3MjQ0MjUxfQ.siatOCSwNlYY1exG-Z7e4_VgYvTbkw_De66--atqPvs',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGJkNWU2ZDJhZDhlMThkY2FhNTE4MGYiLCJlbWFpbCI6InN1bmlsQGdtYWlsLmNvbSIsIm5hbWUiOiJzdW5pbCIsImlhdCI6MTc1NzI0MDk1NiwiZXhwIjoxNzU3MzI3MzU2fQ.IK2XVUkRcHFQAlTwec4QAf04PyGbj7z1FX3mVq5EqsY',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OGJkNWU3MzJhZDhlMThkY2FhNTE4MTIiLCJlbWFpbCI6ImFiaGlzaGVrQGdtYWlsLmNvbSIsIm5hbWUiOiJhYmhpc2hlayIsImlhdCI6MTc1NzI0MTAxMSwiZXhwIjoxNzU3MzI3NDExfQ.sXv7Tl7tQtwMZiy_Tzc9SH99ebiuZhCEZOOnSmL5YTk',
 ];
 
 function createGameClient(token) {
   const decoded = jwt.decode(token);
-  const name = decoded?.name || 'Anonymous';
+  const name = decoded?.name || null;
 
   const socket = io('http://localhost:3000', {
     // when client connects with token to the server,server middleware will verify the token
@@ -48,17 +47,7 @@ function createGameClient(token) {
     );
 
     // Ask user for input
-    let choice;
-    while (true) {
-      choice = parseInt(prompt('Enter your choice index: '));
-      if (
-        !isNaN(choice) &&
-        choice >= 0 &&
-        choice < data.question.options.length
-      )
-        break;
-      console.log('Invalid input, try again.');
-    }
+    let choice = await getUserChoice(data);
 
     socket.emit('answer:submit', {
       gameId: data.gameId,
@@ -86,7 +75,6 @@ function createGameClient(token) {
   socket.on('error', (err) => console.error(`[${name}] Socket error:`, err));
 }
 
-// Create a client for each token
 tokens.forEach(createGameClient);
 
 // .on() = LISTEN for an event.

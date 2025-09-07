@@ -1,6 +1,5 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
 const Game = require('../models/Game');
 const Question = require('../models/Questions');
 const { JWT_SECRET, NUM_QUESTIONS } = require('../config/config');
@@ -11,6 +10,7 @@ const {
   MATCH_QUEUE_KEY,
   GAME_STATE_PREFIX,
 } = require('../redis/redis');
+const dummyQuestions = require('../scripts/questions.json');
 
 let io;
 const socketsByUser = new Map(); // userId -> socket
@@ -86,7 +86,6 @@ function initSocket(server) {
         });
 
         if (correct) player.score += question.points || 10;
-
         // Save state back to Redis
         await redis.set(
           GAME_STATE_PREFIX + payload.gameId,
@@ -120,7 +119,6 @@ function initSocket(server) {
 async function addToQueue(userId, name) {
   const queue = await redis.lrange(MATCH_QUEUE_KEY, 0, -1);
   if (queue.includes(userId.toString())) return;
-
   await redis.rpush(MATCH_QUEUE_KEY, JSON.stringify({ userId, name }));
   tryMatch();
 }
@@ -130,24 +128,23 @@ async function tryMatch() {
   const queueLength = await redis.llen(MATCH_QUEUE_KEY);
   if (queueLength < 2) return;
 
-  const [aRaw, bRaw] = await redis.lpop(MATCH_QUEUE_KEY, 2);
+  let popped = await redis.lpop(MATCH_QUEUE_KEY, 2);
+
+  if (!popped) return;
+  if (!Array.isArray(popped)) popped = [popped];
+
+  if (popped.length < 2) {
+    await redis.rpush(MATCH_QUEUE_KEY, popped[0]);
+    return;
+  }
+
+  const [aRaw, bRaw] = popped;
   const a = JSON.parse(aRaw);
   const b = JSON.parse(bRaw);
 
-  let questions = await Question.aggregate([
-    { $sample: { size: NUM_QUESTIONS } },
-  ]);
-  if (!questions || questions.length === 0) {
-    questions = [
-      {
-        _id: new mongoose.Types.ObjectId(),
-        questionText: 'Sample Question?',
-        options: ['A', 'B', 'C', 'D'],
-        correctAnswer: 'A',
-        points: 10,
-      },
-    ];
-  }
+  let questions =
+    (await Question.aggregate([{ $sample: { size: NUM_QUESTIONS } }])) ||
+    dummyQuestions;
 
   const qSnapshots = questions.map((q) => ({
     questionId: q._id,

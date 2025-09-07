@@ -5,7 +5,6 @@ const { authenticateToken } = require('../middlewares/auth');
 
 router.post('/start', authenticateToken, async (req, res) => {
   try {
-    // attach user name by fetching from DB if needed
     addToQueue(req.user.id, req.user.name || null);
     return res.status(200).json({ message: 'Added to matchmaking queue' });
   } catch (error) {
@@ -14,5 +13,3 @@ router.post('/start', authenticateToken, async (req, res) => {
 });
 
 module.exports = router;
-
-// Now your login → token → socket → game flow is consistent.

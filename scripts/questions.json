@@ -38,5 +38,13 @@
     "category": "Art",
     "difficulty": "Medium",
     "points": 20
+  },
+  {
+    "questionText": "What is the chemical symbol for gold?",
+    "options": ["Au", "Ag", "Fe", "Pb"],
+    "correctAnswer": "Au",
+    "category": "Science",
+    "difficulty": "Medium",
+    "points": 20
   }
 ]
