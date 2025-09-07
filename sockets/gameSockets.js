@@ -135,6 +135,13 @@ async function handleNextQuestionOrFinish(state) {
           })),
           winner: winnerId,
         });
+
+      // Gracefully disconnect player after sending results
+      setTimeout(() => {
+        s.disconnect(true);
+        socketsByUser.delete(p.userId.toString());
+        console.log(`[Socket.IO] Disconnected player: ${p.userId}`);
+      }, 2000);
     });
 
     inMemoryGameState.delete(state.gameId);

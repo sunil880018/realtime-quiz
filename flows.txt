@@ -49,3 +49,168 @@
 │  → Save in DB              │
 │  → Emit "game:end"         │
 └───────────────────────────┘
+
+
+
+
+
+How the real-time flow works
+1.Client authenticates ( /auth/login ) and receives JWT.
+2.Client opens socket connection to ws://server:3000 providing JWT via auth object or
+query param: io('http://host:3000', { auth: { token } }) .
+3.Client calls POST /game/start with Authorization: Bearer <token> .
+4.When two players are queued, server creates a Game, emits game:init to both sockets.
+
+5.Server sends first question with question:send .
+6.Clients submit answers via answer:submit socket event.
+7.Server validates, updates score. When both players have answered a question, server moves to
+the next question or ends the game and emits game:end with results. Game is persisted in
+MongoDB.
+
+
+
+// .on() = LISTEN for an event.
+// .emit() = FIRE/SEND an event.
+
+
+
+⚡ Real-time Flow (Step by Step)
+1️⃣ Client Authentication (/auth/login)
+
+Client first authenticates with REST API:
+
+POST /api/auth/login
+{ "email": "user@example.com", "name": "Alice" }
+
+
+Server responds with JWT token:
+
+{
+  "token": "eyJhbGciOiJI..."
+}
+
+2️⃣ Establish WebSocket Connection
+
+Client opens a Socket.IO connection to the server, providing the JWT:
+
+const socket = io("http://localhost:3000", {
+  auth: { token }
+});
+
+
+Server validates the token in io.use() middleware:
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  const payload = jwt.verify(token, JWT_SECRET);
+  socket.user = { id: payload.userId, name: payload.name };
+  next();
+});
+
+
+👉 This ensures only authenticated users can join real-time events.
+
+3️⃣ Enter Matchmaking Queue (/game/start)
+
+Client requests to join a game:
+
+POST /api/game/start
+Authorization: Bearer <token>
+
+
+Server calls addToQueue(userId, name) → places user into waiting queue.
+
+4️⃣ Matchmaking + Game Initialization
+
+Once two players are in queue:
+
+Server creates a new Game document in MongoDB.
+
+Picks random questions (Question.aggregate([{ $sample: { size: NUM_QUESTIONS } }])).
+
+Builds in-memory game state:
+
+inMemoryGameState.set(gameId, {
+  players: [player1, player2],
+  questions,
+  currentIndex: 0,
+  status: "active"
+});
+
+
+Emits game:init to both players:
+
+socket.emit("game:init", {
+  gameId,
+  opponent: { userId, name }
+});
+
+5️⃣ Sending Questions
+
+Server sends first question to both players:
+
+socket.emit("question:send", {
+  gameId,
+  questionIndex: 0,
+  question: { text: "What is 2+2?", options: ["1","2","3","4"] }
+});
+
+
+Note: Correct answer is hidden with sanitizeQuestion() before sending.
+
+6️⃣ Answer Submission
+
+Client submits answer:
+
+socket.emit("answer:submit", {
+  gameId,
+  questionIndex: 0,
+  selectedChoice: 3
+});
+
+
+Server validates:
+
+Checks player is in the game.
+
+Checks not answered twice.
+
+Compares with correctAnswer.
+
+Updates score in memory.
+
+7️⃣ Question Progression
+
+Server waits until all players answer current question:
+
+const bothAnswered = state.players.every(
+  (p) => p.answers.some((a) => a.questionIndex === payload.questionIndex)
+);
+if (bothAnswered) await handleNextQuestionOrFinish(state);
+
+
+If more questions remain → send next one with question:send.
+
+If finished → go to step 8.
+
+8️⃣ Game End
+
+When all questions answered:
+
+Winner calculated (highest score).
+
+Game persisted in MongoDB (Game.findByIdAndUpdate).
+
+Server notifies both clients:
+
+socket.emit("game:end", {
+  players: [{ userId, name, score }],
+  winner: "userId-of-winner"
+});
+
+📡 Event Flow (Server ↔ Client)
+Event	Direction	Example Payload
+game:init	server → client	{ "gameId": "123", "opponent": { "userId": "u2", "name": "Bob" } }
+question:send	server → client	{ "gameId": "123", "questionIndex": 0, "question": { "text": "2+2?", "options": ["1","2","3","4"] }}
+answer:submit	client → server	{ "gameId": "123", "questionIndex": 0, "selectedChoice": 3 }
+game:end	server → client	{ "players": [{ "userId": "u1", "score": 30 }], "winner": "u1" }

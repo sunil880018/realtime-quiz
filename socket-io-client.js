@@ -1,7 +1,7 @@
 const { io } = require('socket.io-client');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
-const prompt = require('prompt-sync')({ sigint: true }); // npm i prompt-sync
+const prompt = require('prompt-sync')({ sigint: true });
 
 // Array of JWT tokens
 const tokens = [
@@ -13,12 +13,12 @@ tokens.forEach(async (token) => {
   const decoded = jwt.decode(token);
   const name = decoded?.name || 'Anonymous';
 
-  const socket = io('http://localhost:3000', { auth: { token } });
+  const socket = io('http://localhost:3000', { auth: { token } }); // when client connects with token to the server,server middleware will verify the token
 
   socket.on('connect', async () => {
     console.log(`[${name}] Connected: ${socket.id}`);
 
-    // Join game queue
+    // Join game queue , sending user into the queue
     try {
       const res = await axios.post(
         'http://localhost:3000/api/game/start',
@@ -68,6 +68,8 @@ tokens.forEach(async (token) => {
         data.players.find((p) => p.userId === data.winner)?.name || 'No Name';
       console.log(`Winner Name: ${winnerName}`);
     }
+    console.log(`[${name}] Disconnecting...`);
+    socket.disconnect();
   });
 
   socket.on('error', (err) => console.error(`[${name}] Socket error:`, err));
