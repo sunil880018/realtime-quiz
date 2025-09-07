@@ -56,14 +56,18 @@ npm install
 ### Run Locally
 
 ```bash
-npm run start      # Start Express + Socket.IO
+node index    # Start Express + Socket.IO
 
 ```
 
-## Docker compose Build
+## Run using Docker compose Build
 
 ```bash
-docker compose up --build
+1.docker compose build
+2.docker compose up -d
+
+3.node socket-io-client
+
 
 ```
 

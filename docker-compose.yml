@@ -6,6 +6,8 @@ services:
       - '27017:27017'
     volumes:
       - mongo-data:/data/db
+    networks:
+      - mynetwork
 
   redis:
     image: redis:latest
@@ -21,7 +23,7 @@ services:
     environment:
       - MONGO_URI=mongodb://mongo:27017/quiz
       - JWT_SECRET=replace-this-secret
-      - NUM_QUESTIONS=2
+      - NUM_QUESTIONS=4
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     ports:

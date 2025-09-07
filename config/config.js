@@ -4,9 +4,9 @@ module.exports = {
   JWT_SECRET: process.env.JWT_SECRET || 'replace-this-secret',
   PORT: process.env.PORT || 3000,
   NUM_QUESTIONS: Number(process.env.NUM_QUESTIONS || 4),
-  REDIS_HOST: process.env.REDIS_HOST || 'localhost',
+  REDIS_HOST: process.env.REDIS_HOST || 'redis',
   REDIS_PORT: Number(process.env.REDIS_PORT || 6379),
-  REDIS_URL: `redis://${process.env.REDIS_HOST || 'localhost'}:${
+  REDIS_URL: `redis://${process.env.REDIS_HOST || 'redis'}:${
     process.env.REDIS_PORT || 6379
   }`,
 };
