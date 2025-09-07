@@ -85,10 +85,6 @@ node index    # Start Express + Socket.IO
 
 ## After Login, insert generated token in tokens array inside socket-io.client.js file.
 
-```bash
-npm run client     # Start simulated players
-```
-
 ## Socket.IO Events
 
 ```bash
