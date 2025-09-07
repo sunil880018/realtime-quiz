@@ -1,6 +1,6 @@
 # 🕹️ Realtime Quiz App
 
-A **Node.js + Socket.IO + MongoDB + Redis** powered multiplayer quiz application where users can join, answer questions in real-time, and compete for the highest score.
+A **Node.js + Socket.IO + MongoDB + Redis ( Pub-Sub )** powered multiplayer quiz application where users can join, answer questions in real-time, and compete for the highest score.
 
 ---
 
@@ -12,24 +12,6 @@ A **Node.js + Socket.IO + MongoDB + Redis** powered multiplayer quiz application
 - 📡 Real-time Question & Answer flow using **Socket.IO**
 - 🏆 Winner calculation based on score
 - 🐳 Docker Compose support for easy setup
-
----
-
-## 📂 Project Structure
-
-```bash
-├── index.js # Entry point (Express + Socket.IO)
-├── socket/ # Socket.IO events and matchmaking
-├── models/ # Mongoose schemas (User, Game, Question)
-├── routes/ # Express routes (auth, game)
-├── client-socket.js # Socket.IO client simulator (for testing)
-├── postman/quiz.postman_collection.json # Postman collection
-├── Dockerfile # Node.js Docker build
-├── docker-compose.yml # Runs Node.js + MongoDB
-└── README.md
-
----
-```
 
 ## 🛠️ Setup
 
@@ -57,6 +39,7 @@ npm install
 
 ```bash
 node index    # Start Express + Socket.IO
+node socket-io-client.  # client socket
 
 ```
 
