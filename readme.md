@@ -23,7 +23,7 @@ A **Node.js + Socket.IO + MongoDB + Redis** powered multiplayer quiz application
 ├── models/ # Mongoose schemas (User, Game, Question)
 ├── routes/ # Express routes (auth, game)
 ├── client-socket.js # Socket.IO client simulator (for testing)
-├── quiz.postman_collection.json # Postman collection
+├── postman/quiz.postman_collection.json # Postman collection
 ├── Dockerfile # Node.js Docker build
 ├── docker-compose.yml # Runs Node.js + MongoDB
 └── README.md
@@ -96,3 +96,5 @@ npm run client     # Start simulated players
 | `game:end`      | server → client | `{ "players": [{ "userId": "u1", "name": "Alice", "score": 50 }], "winner": "Alice" }`                                  |
 
 ```
+
+## Postman collections provided in postman-collection folder
