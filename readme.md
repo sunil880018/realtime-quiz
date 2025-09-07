@@ -81,3 +81,13 @@ node socket-io-client.  # client socket
 ```
 
 ## Postman collections provided in postman-collection folder
+
+<img src="./screen-shots/Screenshot-1.png" width="600">
+<img src="./screen-shots/Screenshot-2.png" width="600">
+<img src="./screen-shots/Screenshot-3.png" width="600">
+<img src="./screen-shots/Screenshot-4.png" width="600">
+<img src="./screen-shots/Screenshot-5.png" width="600">
+<img src="./screen-shots/Screenshot-6.png" width="600">
+<img src="./screen-shots/Screenshot-7.png" width="600">
+<img src="./screen-shots/Screenshot-8.png" width="600">
+<img src="./screen-shots/Screenshot-9.png" width="600">
