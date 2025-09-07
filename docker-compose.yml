@@ -7,16 +7,34 @@ services:
     volumes:
       - mongo-data:/data/db
 
+  redis:
+    image: redis:latest
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - mynetwork
+
   app:
     build: .
     environment:
       - MONGO_URI=mongodb://mongo:27017/quiz
       - JWT_SECRET=replace-this-secret
       - NUM_QUESTIONS=2
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     ports:
       - '3000:3000'
     depends_on:
       - mongo
+      - redis
+    networks:
+      - mynetwork
 
 volumes:
   mongo-data:
+  redis_data:
+
+networks:
+  mynetwork:

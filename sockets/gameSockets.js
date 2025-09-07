@@ -4,14 +4,26 @@ const mongoose = require('mongoose');
 const Game = require('../models/Game');
 const Question = require('../models/Questions');
 const { JWT_SECRET, NUM_QUESTIONS } = require('../config/config');
+const {
+  redis,
+  pub,
+  sub,
+  MATCH_QUEUE_KEY,
+  GAME_STATE_PREFIX,
+} = require('../redis/redis');
 
 let io;
 const socketsByUser = new Map(); // userId -> socket
-const waitingQueue = []; // matchmaking queue
-const inMemoryGameState = new Map(); // gameId -> runtime state
 
 function initSocket(server) {
   io = new Server(server, { cors: { origin: '*' } });
+
+  // Redis Pub/Sub for game events
+  sub.subscribe('game:events');
+  sub.on('message', (channel, message) => {
+    const { event, payload } = JSON.parse(message);
+    handleGameEvent(event, payload);
+  });
 
   // Authentication middleware
   io.use((socket, next) => {
@@ -41,12 +53,13 @@ function initSocket(server) {
         if (!payload?.gameId)
           return socket.emit('error', { message: 'Invalid payload' });
 
-        const state = inMemoryGameState.get(payload.gameId);
-        if (!state)
+        const stateRaw = await redis.get(GAME_STATE_PREFIX + payload.gameId);
+        if (!stateRaw)
           return socket.emit('error', {
             message: 'Game not found or finished',
           });
 
+        const state = JSON.parse(stateRaw);
         const player = state.players.find(
           (p) => p.userId.toString() === id.toString()
         );
@@ -57,12 +70,10 @@ function initSocket(server) {
         if (!question)
           return socket.emit('error', { message: 'Invalid question index' });
 
-        // Prevent double answers
         if (
           player.answers.some((a) => a.questionIndex === payload.questionIndex)
         )
           return socket.emit('error', { message: 'Already answered' });
-
         // Map index to option text
         const selectedAnswerText = question.options[payload.selectedChoice];
         const correct = selectedAnswerText === question.correctAnswer;
@@ -76,12 +87,27 @@ function initSocket(server) {
 
         if (correct) player.score += question.points || 10;
 
-        // Check if all players answered this question
-        const bothAnswered = state.players.every((p) =>
+        // Save state back to Redis
+        await redis.set(
+          GAME_STATE_PREFIX + payload.gameId,
+          JSON.stringify(state)
+        );
+
+        // Check if all players answered
+        const allAnswered = state.players.every((p) =>
           p.answers.some((a) => a.questionIndex === payload.questionIndex)
         );
 
-        if (bothAnswered) await handleNextQuestionOrFinish(state);
+        if (allAnswered) {
+          // Publish event for handling next question or finishing game
+          pub.publish(
+            'game:events',
+            JSON.stringify({
+              event: 'nextOrFinish',
+              payload: { gameId: payload.gameId },
+            })
+          );
+        }
       } catch (err) {
         console.error('[Socket.IO] answer:submit error', err);
         socket.emit('error', { message: 'Server error' });
@@ -90,102 +116,23 @@ function initSocket(server) {
   });
 }
 
-// Send next question or finish game
-async function handleNextQuestionOrFinish(state) {
-  state.currentIndex += 1;
-
-  if (state.currentIndex >= state.questions.length) {
-    state.status = 'finished';
-    const [p1, p2] = state.players;
-
-    // Determine winner
-    let winnerId = null;
-    if (p1.score > p2.score) winnerId = new mongoose.Types.ObjectId(p1.userId);
-    else if (p2.score > p1.score)
-      winnerId = new mongoose.Types.ObjectId(p2.userId);
-
-    // Persist game
-    const gameDoc = await Game.findById(state.gameId);
-    if (gameDoc) {
-      gameDoc.players = state.players.map((p) => ({
-        userId: p.userId,
-        name: p.name,
-        score: p.score,
-        answers: p.answers.map((a) => ({
-          questionIndex: a.questionIndex,
-          selectedOption: a.selectedAnswer,
-          correct: a.correct,
-        })),
-      }));
-      gameDoc.currentIndex = state.currentIndex;
-      gameDoc.status = 'finished';
-      gameDoc.winner = winnerId;
-      await gameDoc.save();
-    }
-
-    // Notify players
-    state.players.forEach((p) => {
-      const s = socketsByUser.get(p.userId.toString());
-      if (s)
-        s.emit('game:end', {
-          players: state.players.map((x) => ({
-            userId: x.userId,
-            score: x.score,
-            name: x.name,
-          })),
-          winner: winnerId,
-        });
-
-      // Gracefully disconnect player after sending results
-      setTimeout(() => {
-        s.disconnect(true);
-        socketsByUser.delete(p.userId.toString());
-        console.log(`[Socket.IO] Disconnected player: ${p.userId}`);
-      }, 2000);
-    });
-
-    inMemoryGameState.delete(state.gameId);
-  } else {
-    // Send next question
-    state.players.forEach((p) => {
-      const s = socketsByUser.get(p.userId.toString());
-      if (s)
-        s.emit('question:send', {
-          gameId: state.gameId,
-          questionIndex: state.currentIndex,
-          question: sanitizeQuestion(state.questions[state.currentIndex]),
-        });
-    });
-  }
-}
-
-// Hide correctAnswer before sending to client
-function sanitizeQuestion(q) {
-  if (!q) return { text: 'No question', options: [] };
-  return { text: q.text, options: q.options };
-}
-
 // Add player to matchmaking queue
 async function addToQueue(userId, name) {
-  if (waitingQueue.some((x) => x.userId.toString() === userId.toString()))
-    return;
-  if (
-    [...inMemoryGameState.values()].some((g) =>
-      g.players.some((p) => p.userId.toString() === userId.toString())
-    )
-  )
-    return;
+  const queue = await redis.lrange(MATCH_QUEUE_KEY, 0, -1);
+  if (queue.includes(userId.toString())) return;
 
-  waitingQueue.push({ userId, name });
+  await redis.rpush(MATCH_QUEUE_KEY, JSON.stringify({ userId, name }));
   tryMatch();
 }
 
-// Match two players
+// Try matching players
 async function tryMatch() {
-  if (waitingQueue.length < 2) return;
+  const queueLength = await redis.llen(MATCH_QUEUE_KEY);
+  if (queueLength < 2) return;
 
-  const a = waitingQueue.shift();
-  const b = waitingQueue.shift();
+  const [aRaw, bRaw] = await redis.lpop(MATCH_QUEUE_KEY, 2);
+  const a = JSON.parse(aRaw);
+  const b = JSON.parse(bRaw);
 
   let questions = await Question.aggregate([
     { $sample: { size: NUM_QUESTIONS } },
@@ -226,28 +173,89 @@ async function tryMatch() {
     currentIndex: 0,
     status: 'active',
   };
-  inMemoryGameState.set(gameDoc._id.toString(), state);
+
+  await redis.set(
+    GAME_STATE_PREFIX + gameDoc._id.toString(),
+    JSON.stringify(state)
+  );
 
   // Notify players
   [a, b].forEach((p) => {
     const s = socketsByUser.get(p.userId.toString());
-    if (s)
+    if (s) {
       s.emit('game:init', {
         gameId: gameDoc._id.toString(),
         opponent: p.userId.toString() === a.userId.toString() ? b : a,
       });
-  });
-
-  // Send first question
-  state.players.forEach((p) => {
-    const s = socketsByUser.get(p.userId.toString());
-    if (s)
       s.emit('question:send', {
         gameId: state.gameId,
         questionIndex: 0,
         question: sanitizeQuestion(state.questions[0]),
       });
+    }
   });
+}
+
+// Handle next question or finish
+async function handleGameEvent(event, payload) {
+  if (event !== 'nextOrFinish') return;
+
+  const stateRaw = await redis.get(GAME_STATE_PREFIX + payload.gameId);
+  if (!stateRaw) return;
+
+  const state = JSON.parse(stateRaw);
+  state.currentIndex += 1;
+
+  if (state.currentIndex >= state.questions.length) {
+    state.status = 'finished';
+    const [p1, p2] = state.players;
+    let winnerId = null;
+    if (p1.score > p2.score) winnerId = p1.userId;
+    else if (p2.score > p1.score) winnerId = p2.userId;
+
+    // Persist game
+    await Game.findByIdAndUpdate(state.gameId, {
+      players: state.players.map((p) => ({
+        userId: p.userId,
+        name: p.name,
+        score: p.score,
+        answers: p.answers.map((a) => ({
+          questionIndex: a.questionIndex,
+          selectedOption: a.selectedAnswer,
+          correct: a.correct,
+        })),
+      })),
+      currentIndex: state.currentIndex,
+      status: 'finished',
+      winner: winnerId,
+    });
+
+    state.players.forEach((p) => {
+      const s = socketsByUser.get(p.userId.toString());
+      if (s) {
+        s.emit('game:end', { players: state.players, winner: winnerId });
+        setTimeout(() => s.disconnect(true), 2000);
+      }
+    });
+
+    await redis.del(GAME_STATE_PREFIX + payload.gameId);
+  } else {
+    state.players.forEach((p) => {
+      const s = socketsByUser.get(p.userId.toString());
+      if (s)
+        s.emit('question:send', {
+          gameId: state.gameId,
+          questionIndex: state.currentIndex,
+          question: sanitizeQuestion(state.questions[state.currentIndex]),
+        });
+    });
+    await redis.set(GAME_STATE_PREFIX + payload.gameId, JSON.stringify(state));
+  }
+}
+
+function sanitizeQuestion(q) {
+  if (!q) return { text: 'No question', options: [] };
+  return { text: q.text, options: q.options };
 }
 
 module.exports = { initSocket, addToQueue };

@@ -9,46 +9,54 @@
 └─────────┬────────────┘
           │ (authenticated)
           ▼
-┌──────────────────────┐
-│  Added to Queue      │
-└─────────┬────────────┘
-          │ (when >= 2 players)
+┌───────────────────────────────┐
+│ Add player to Redis Queue     │
+│ → RPUSH to MATCH_QUEUE_KEY   │
+│ → Try matching (tryMatch())  │
+└─────────┬────────────────────┘
+          │ (if >= 2 players)
           ▼
-┌──────────────────────┐
-│   Matchmaking        │
-│  → Create Game Doc   │
-│  → Select Questions  │
-└─────────┬────────────┘
+┌───────────────────────────────┐
+│ Matchmaking triggered          │
+│ → Pop 2 players from queue    │
+│ → Select questions from DB     │
+│ → Create Game doc in MongoDB   │
+│ → Store initial state in Redis │
+└─────────┬────────────────────┘
           │
           ▼
-┌─────────────────────────┐
-│ Send "game:init" event  │
-│ Send 1st Question        │
-└─────────┬───────────────┘
+┌───────────────────────────────┐
+│ Notify players via Socket.io   │
+│ → "game:init" event            │
+│ → "question:send" event        │
+└─────────┬────────────────────┘
           │
           ▼
-┌───────────────────────────┐
-│ Players submit answers     │
-│ → "answer:submit" event    │
-└──────────┬────────────────┘
-           │
-    ┌──────▼───────┐
-    │ Both Answer? │───No───> Wait
-    └──────┬───────┘
-           │Yes
-           ▼
-┌───────────────────────────┐
-│ Check correctness         │
-│ Update scores             │
-│ Next Question or End Game │
-└──────────┬────────────────┘
-           │
-           ▼
-┌───────────────────────────┐
-│  Game Finished             │
-│  → Save in DB              │
-│  → Emit "game:end"         │
-└───────────────────────────┘
+┌───────────────────────────────┐
+│ Players submit answers         │
+│ → "answer:submit" via Socket.io│
+│ → Update game state in Redis   │
+│ → If all answered, publish     │
+│   'game:events' → nextOrFinish │
+└─────────┬────────────────────┘
+          │
+    ┌─────▼─────────┐
+    │ All answered? │───No───> Wait
+    └─────┬─────────┘
+          │Yes
+          ▼
+┌───────────────────────────────┐
+│ Handle next question / finish │
+│ → Redis subscriber listens   │
+│ → Increment currentIndex      │
+│ → If more questions:          │
+│     → Emit next question      │
+│     → Update Redis state      │
+│ → If finished:                │
+│     → Persist game to MongoDB │
+│     → Emit "game:end" to players│
+│     → Delete Redis state      │
+└───────────────────────────────┘
 
 
 
@@ -74,143 +82,3 @@ MongoDB.
 
 
 
-⚡ Real-time Flow (Step by Step)
-1️⃣ Client Authentication (/auth/login)
-
-Client first authenticates with REST API:
-
-POST /api/auth/login
-{ "email": "user@example.com", "name": "Alice" }
-
-
-Server responds with JWT token:
-
-{
-  "token": "eyJhbGciOiJI..."
-}
-
-2️⃣ Establish WebSocket Connection
-
-Client opens a Socket.IO connection to the server, providing the JWT:
-
-const socket = io("http://localhost:3000", {
-  auth: { token }
-});
-
-
-Server validates the token in io.use() middleware:
-
-io.use((socket, next) => {
-  const token = socket.handshake.auth?.token;
-  const payload = jwt.verify(token, JWT_SECRET);
-  socket.user = { id: payload.userId, name: payload.name };
-  next();
-});
-
-
-👉 This ensures only authenticated users can join real-time events.
-
-3️⃣ Enter Matchmaking Queue (/game/start)
-
-Client requests to join a game:
-
-POST /api/game/start
-Authorization: Bearer <token>
-
-
-Server calls addToQueue(userId, name) → places user into waiting queue.
-
-4️⃣ Matchmaking + Game Initialization
-
-Once two players are in queue:
-
-Server creates a new Game document in MongoDB.
-
-Picks random questions (Question.aggregate([{ $sample: { size: NUM_QUESTIONS } }])).
-
-Builds in-memory game state:
-
-inMemoryGameState.set(gameId, {
-  players: [player1, player2],
-  questions,
-  currentIndex: 0,
-  status: "active"
-});
-
-
-Emits game:init to both players:
-
-socket.emit("game:init", {
-  gameId,
-  opponent: { userId, name }
-});
-
-5️⃣ Sending Questions
-
-Server sends first question to both players:
-
-socket.emit("question:send", {
-  gameId,
-  questionIndex: 0,
-  question: { text: "What is 2+2?", options: ["1","2","3","4"] }
-});
-
-
-Note: Correct answer is hidden with sanitizeQuestion() before sending.
-
-6️⃣ Answer Submission
-
-Client submits answer:
-
-socket.emit("answer:submit", {
-  gameId,
-  questionIndex: 0,
-  selectedChoice: 3
-});
-
-
-Server validates:
-
-Checks player is in the game.
-
-Checks not answered twice.
-
-Compares with correctAnswer.
-
-Updates score in memory.
-
-7️⃣ Question Progression
-
-Server waits until all players answer current question:
-
-const bothAnswered = state.players.every(
-  (p) => p.answers.some((a) => a.questionIndex === payload.questionIndex)
-);
-if (bothAnswered) await handleNextQuestionOrFinish(state);
-
-
-If more questions remain → send next one with question:send.
-
-If finished → go to step 8.
-
-8️⃣ Game End
-
-When all questions answered:
-
-Winner calculated (highest score).
-
-Game persisted in MongoDB (Game.findByIdAndUpdate).
-
-Server notifies both clients:
-
-socket.emit("game:end", {
-  players: [{ userId, name, score }],
-  winner: "userId-of-winner"
-});
-
-📡 Event Flow (Server ↔ Client)
-Event	Direction	Example Payload
-game:init	server → client	{ "gameId": "123", "opponent": { "userId": "u2", "name": "Bob" } }
-question:send	server → client	{ "gameId": "123", "questionIndex": 0, "question": { "text": "2+2?", "options": ["1","2","3","4"] }}
-answer:submit	client → server	{ "gameId": "123", "questionIndex": 0, "selectedChoice": 3 }
-game:end	server → client	{ "players": [{ "userId": "u1", "score": 30 }], "winner": "u1" }

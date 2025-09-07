@@ -1,6 +1,6 @@
 # 🕹️ Realtime Quiz App
 
-A **Node.js + Socket.IO + MongoDB** powered multiplayer quiz application where users can join, answer questions in real-time, and compete for the highest score.
+A **Node.js + Socket.IO + MongoDB + Redis** powered multiplayer quiz application where users can join, answer questions in real-time, and compete for the highest score.
 
 ---
 
@@ -50,6 +50,8 @@ npm install
 - JWT_SECRET=replace-this-secret
 - NUM_QUESTIONS=6
 - PORT=3000
+- REDIS_HOST=127.0.0.1
+- REDIS_PORT=6379
 
 ### Run Locally
 
